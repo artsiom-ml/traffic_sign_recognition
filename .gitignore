@@ -1,0 +1,13 @@
+*/.ipynb_checkpoints/*
+*/.idea/*
+.ipynb_checkpoints
+__pycache__
+/input/*
+/datasets/rtsd/data/train/*
+/datasets/rtsd/data/val/*
+exp
+/yolov5/runs/*
+/temp/*
+/models/*
+/datasets.zip
+/readme.txt
