@@ -1,11 +1,13 @@
-## About dataset
+# Traffic sign detection with YOLOv5
+
+## <summary>About dataset &nbsp;</summary>
 Russian traffic sign images dataset (RTSD)
 
 RTSD dataset contains frames provided by Geocenter Consulting company (http://geocenter-consulting.ru). Frames are obtained from widescreen digital video recorder which captures 5 frames per second. Frame resolution is from 1280×720 to 1920×1080. Frames are captured in different seasons (spring, autumn, winter), time of day (morning, afternoon, evening) and in different weather conditions (rain, snow, bright sun).
 
 Download from Kaggle [here](https://www.kaggle.com/datasets/watchman/rtsd-dataset)
 
-Dataset described in this [article](http://computeroptics.ru/eng/KO/PDF/KO41-ENG%20-17/400221.pdf)
+Dataset is described in this [article](http://computeroptics.ru/eng/KO/PDF/KO41-ENG%20-17/400221.pdf)
 
 ##  <summary>Usage Examples &nbsp;</summary>
 
@@ -55,5 +57,5 @@ After run web server use HTTP POST requests (in details on localhost:8000/docs):
 ```bash
 POST http://localhost:8000/detect
 ```
---- |---
+
 

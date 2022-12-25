@@ -1,27 +1,39 @@
+import json
 from fastapi import FastAPI, Request, Form, File, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 from typing import List, Optional
-
+import sys
+import torch
 import cv2
 import numpy as np
-
-import torch
 import base64
 import random
+import os
+
+import logging
+logging.basicConfig()
+
+CLASS_DESRIP_PATH = os.path.join(os.path.dirname(__file__), "class_description.json")
+MODEL_PATH = './../models/{}.pt'
 
 app = FastAPI()
 templates = Jinja2Templates(directory='templates')
 
-model_selection_options = ['yolov5s6', 'yolov5s6_1', 'yolov5s']
+model_selection_options = [m.split('.')[0] for m in os.listdir('./../models')]
 model_dict = {model_name: None for model_name in model_selection_options}
 
+class_descr = {}
+try:
+    with open(CLASS_DESRIP_PATH, 'r', encoding='utf-8') as f:
+        class_descr = json.load(f)
+except OSError as e:
+    logging.error(e)
 
 colors = [tuple([random.randint(0, 255) for _ in range(3)]) for _ in range(100)]
 
 def get_yolov5(model_name):
-    model = torch.hub.load("./../yolov5", 'custom', path=f'./../models/{model_name}.pt', source='local')
+    model = torch.hub.load("./../yolov5", 'custom', path=MODEL_PATH.format(model_name), source='local')
     return model
 
 @app.get("/")
@@ -106,25 +118,44 @@ async def detect_via_api(file_list: List[UploadFile] = File(...),
     return json_results
 
 
-@app.get("/video_feed/{camera_id}", include_in_schema=False)
-async def video_feed(camera_id: int):
-    return StreamingResponse(gen_frames(camera_id), media_type='multipart/x-mixed-replace; boundary=frame')
+@app.get("/cam")
+async def video(request: Request):
+    return templates.TemplateResponse('video.html', {
+            "request": request,
+            "model_selection_options": model_selection_options,
+        })
+
+@app.get("/video_feed", include_in_schema=False)
+async def video_feed():
+    return StreamingResponse(gen_frames('yolov5s6_1'), media_type='multipart/x-mixed-replace; boundary=frame')
 
 
-async def gen_frames(camera_id):
-    cap=  cv2.VideoCapture(camera_id)
+def gen_frames(model_name, camera_id=0):
+    if model_dict[model_name] is None:
+        model_dict[model_name] = get_yolov5(model_name)
+    cap = cv2.VideoCapture(camera_id)
 
     while True:
-        # for cap in caps:
-        # # Capture frame-by-frame
-        success, frame = cap.read()  # read the camera frame
+        success, frame = cap.read()
         if not success:
             break
         else:
-            ret, buffer = cv2.imencode('.jpg', frame)
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            results = model_dict[model_name](img, size=640)
+
+            json_results = results_to_json(results, model_dict[model_name])[0]
+
+            if json_results:
+                for bbox in json_results:
+                    label = f'{bbox["class_name"]} {bbox["confidence"]:.2f}'
+                    plot_one_box(bbox['bbox'], img, label=label,
+                                 color=colors[int(bbox['class'])], line_thickness=2)
+
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            ret, buffer = cv2.imencode('.jpg', img)
             frame = buffer.tobytes()
             yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n') 
-
 
 
 def results_to_json(results, model):
@@ -133,6 +164,7 @@ def results_to_json(results, model):
                     {
                     "class": int(pred[5]),
                     "class_name": model.model.names[int(pred[5])],
+                    "class_descr": class_descr.get(model.model.names[int(pred[5])], '-'),
                     "bbox": [int(x) for x in pred[:4].tolist()],
                     "confidence": float(pred[4]),
                     }
@@ -156,7 +188,6 @@ def plot_one_box(x, im, color=(128, 128, 128), label=None, line_thickness=3):
 def base64EncodeImage(img):
     _, im_arr = cv2.imencode('.jpg', img)
     im_b64 = base64.b64encode(im_arr.tobytes()).decode('utf-8')
-
     return im_b64
 
 if __name__ == '__main__':

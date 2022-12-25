@@ -12,7 +12,6 @@ import shutil
 from random import shuffle
 from pathlib import Path, PurePath
 
-# from yolov5.utils.general import LOGGER
 import logging
 logging.basicConfig()
 
@@ -22,39 +21,20 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))
 
-class RtsdDataset():
-    def __init__(self, input_path, output_path):
 
+class RtsdDataset:
+
+    def __init__(self, input_path, output_path):
         self.input_path = ROOT / input_path
         self.output_path = ROOT / output_path
         self.train_annotations_path = Path.joinpath(self.input_path, 'train_anno.json')
         self.val_annotations_path = Path.joinpath(self.input_path, 'val_anno.json')
         self.images_path = Path.joinpath(self.input_path, 'rtsd-frames/rtsd-frames')
-
-        # self.train_annotations_path = os.path.join(self.input_path, 'train_anno.json')
-        # self.val_annotations_path = os.path.join(self.input_path, 'val_anno.json')
-        # self.images_path = os.path.join(self.input_path, 'rtsd-frames/rtsd-frames')
-
-        # self.annotations = os.listdir(self.annotations_path)
-
         self.classes = None
         self.n_classes = None
-
-        # self.labels_dir = self.make_dir_for_annotations()
         self.train_dir, self.val_dir = self.make_dirs_train_val_data()
 
-    # def make_dir_for_annotations(self):
-    #     labels_dir = f'{self.output_path}/data/labels'
-    #     if os.path.exists(labels_dir):
-    #         shutil.rmtree(labels_dir)
-    #     os.makedirs(labels_dir)
-    #     return labels_dir
-
     def make_dirs_train_val_data(self):
-
-        # train_dir = self.output_path + '/data/train'
-        # val_dir = self.output_path + '/data/val'
-
         train_dir = Path.joinpath(self.output_path, 'data', 'train')
         val_dir = Path.joinpath(self.output_path, 'data', 'val')
 
@@ -71,17 +51,12 @@ class RtsdDataset():
         Path.joinpath(train_dir, 'labels').mkdir()
         Path.joinpath(val_dir, 'images').mkdir()
         Path.joinpath(val_dir, 'labels').mkdir()
-        # os.mkdir(train_dir + '/images')
-        # os.mkdir(train_dir + '/labels')
-        # os.mkdir(val_dir + '/images')
-        # os.mkdir(val_dir + '/labels')
 
         return train_dir, val_dir
 
     def data_preprocessing(self):
         train_labels_df = self.parse_input_annotations(self.train_annotations_path)
         val_labels_df = self.parse_input_annotations(self.val_annotations_path)
-
 
         train_labels_df = self.filter_anno_by_area(train_labels_df)
         val_labels_df = self.filter_anno_by_area(val_labels_df)
@@ -118,8 +93,10 @@ class RtsdDataset():
         self.write_annotations(val_img_labels, Path.joinpath(self.val_dir, 'labels'))
 
         train_files, val_files = list(train_img_labels.keys()), list(val_img_labels.keys())
+
         dst_train_path = Path.joinpath(self.train_dir, 'images')
         dst_val_path = Path.joinpath(self.val_dir, 'images')
+
         self.copy_imgs(self.images_path, dst_train_path, train_files)
         self.copy_imgs(self.images_path, dst_val_path, val_files)
 
@@ -156,23 +133,15 @@ class RtsdDataset():
         return df[~df['img_name'].isin(except_img_list)]
 
     def filter_anno_by_label(self, df, interest_labels):
-        df_new = df[df['label'].isin(interest_labels)]
-        return df_new
+        return df[df['label'].isin(interest_labels)]
 
     def remove_single_sign_annotation(self, df):
-
         img_name_count = df['img_name'].value_counts()
         imgs_with_one_sign = list(img_name_count[img_name_count == 1].index)
         imgs_5_19_1 = list(df[df['label'] == '5_19_1']['img_name'].unique())
         imgs_2_1 = list(df[df['label'] == '2_1']['img_name'].unique())
         imgs_5_16 = list(df[df['label'] == '5_16']['img_name'].unique())
         imgs_5_15_2 = list(df[df['label'] == '5_15_2']['img_name'].unique())
-
-        # print(len(imgs_with_one_sign))
-        # print(len(imgs_5_19_1))
-        # print(len(imgs_2_1))
-        # print(len(imgs_5_16))
-        # print(len(imgs_5_15_2))
 
         imgs_for_delete = []
         imgs_for_delete.extend(list(set(imgs_with_one_sign) & set(imgs_5_19_1)))
@@ -210,6 +179,7 @@ class RtsdDataset():
         return img_dict
 
     def write_annotations(self, img_dict, dst):
+
         if os.path.exists(dst):
             shutil.rmtree(dst)
         os.makedirs(dst)
@@ -222,22 +192,13 @@ class RtsdDataset():
                     f.write('\n')
 
     def copy_imgs(self, images_path, destination_path, files):
-        # dst = Path.joinpath(destination_path, 'images')
         for file_name in tqdm(files, desc=f'Copy images to {destination_path}'):
-            # src = images_path + f'/{file_name}'
-            # dst = destination_path + '/images'
             src = Path.joinpath(images_path, file_name)
-
             shutil.copy(src, destination_path)
 
     def yaml_save(self, train_images_path, val_images_path):
         yaml_path = Path.joinpath(self.output_path, 'data', 'traffic_signs.yaml')
         with open(yaml_path, 'w') as f:
-            #f.write(f'path: {Path.joinpath(self.output_path, "data")}\n')
-            # f.write(f'path: {self.output_path}/data\n')
-            # f.write('train: train/images\n')
-            # f.write('val: val/images\n')
-
             f.write(f'train: {train_images_path}\n')
             f.write(f'val: {val_images_path}\n')
             f.write(f'nc: {self.n_classes}\n')
@@ -245,12 +206,6 @@ class RtsdDataset():
 
 
 def main(opt):
-    # input_path = './../input/rtsd'
-    # output_path = './../datasets/rtsd'
-
-    # print(opt.input_path)
-    # print(opt.output_path)
-    #
     ds = RtsdDataset(opt.input_path, opt.output_path)
     ds.data_preprocessing()
 
@@ -260,6 +215,7 @@ def parse_opt(known=False):
     parser.add_argument('--input_path', type=str, default=ROOT / './../input/rtsd', help='input path for data')
     parser.add_argument('--output_path', type=str, default=ROOT / './../datasets/rtsd', help='dataset path')
     return parser.parse_known_args()[0] if known else parser.parse_args()
+
 
 def run(**kwargs):
     opt = parse_opt(True)
