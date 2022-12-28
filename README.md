@@ -11,6 +11,15 @@ Dataset is described in this [article](http://computeroptics.ru/eng/KO/PDF/KO41-
 
 ##  <summary>Usage Examples &nbsp;</summary>
 
+### Before you start
+Clone this repo, yolo and install requirements.txt in a Python>=3.7.0 environment
+```bash
+git https://github.com/artsiom-ml/traffic_sign_recognition.git
+cd traffic_sign_recognition
+pip install -r requirements.txt
+
+git clone https://github.com/ultralytics/yolov5
+```
 
 ### Dataset preprocessing
 RTSD dataset preprocessing:

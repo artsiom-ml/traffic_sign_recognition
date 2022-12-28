@@ -20,6 +20,8 @@ MODEL_PATH = './../models/{}.pt'
 app = FastAPI()
 templates = Jinja2Templates(directory='templates')
 
+camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+
 model_selection_options = [m.split('.')[0] for m in os.listdir('./../models')]
 model_dict = {model_name: None for model_name in model_selection_options}
 
@@ -32,9 +34,11 @@ except OSError as e:
 
 colors = [tuple([random.randint(0, 255) for _ in range(3)]) for _ in range(100)]
 
+
 def get_yolov5(model_name):
     model = torch.hub.load("./../yolov5", 'custom', path=MODEL_PATH.format(model_name), source='local')
     return model
+
 
 @app.get("/")
 async def home(request: Request):
@@ -43,12 +47,13 @@ async def home(request: Request):
             "model_selection_options": model_selection_options,
         })
 
+
 @app.get("/drag_and_drop_detect")
 async def drag_and_drop_detect(request: Request):
     
     return templates.TemplateResponse('drag_and_drop_detect.html',
             {"request": request,
-            "model_selection_options": model_selection_options,
+             "model_selection_options": model_selection_options,
         })
 
 
@@ -71,12 +76,11 @@ async def detect_with_server_side_rendering(request: Request,
     json_results = results_to_json(results, model_dict[model_name])
 
     img_str_list = []
-    #plot bboxes on the image
+    # plot bboxes on the image
     for img, bbox_list in zip(img_batch, json_results):
         for bbox in bbox_list:
             label = f'{bbox["class_name"]} {bbox["confidence"]:.2f}'
-            plot_one_box(bbox['bbox'], img, label=label, 
-                    color=colors[int(bbox['class'])], line_thickness=2)
+            plot_one_box(bbox['bbox'], img, label=label, color=colors[int(bbox['class'])], line_thickness=2)
 
         img_str_list.append(base64EncodeImage(img))
 
@@ -89,16 +93,16 @@ async def detect_with_server_side_rendering(request: Request,
 
 
 @app.post("/detect")
-async def detect_via_api(file_list: List[UploadFile] = File(...), 
-                model_name: str = Form(...),
-                img_size: Optional[int] = Form(1280),
-                download_image: Optional[bool] = Form(False)):
-    
+async def detect_via_api(file_list: List[UploadFile] = File(...),
+                         model_name: str = Form(...),
+                         img_size: Optional[int] = Form(1280),
+                         download_image: Optional[bool] = Form(False)):
+
     if model_dict[model_name] is None:
         model_dict[model_name] = get_yolov5(model_name)
     
     img_batch = [cv2.imdecode(np.fromstring(file.file.read(), np.uint8), cv2.IMREAD_COLOR)
-                for file in file_list]
+                 for file in file_list]
 
     img_batch_rgb = [cv2.cvtColor(img, cv2.COLOR_BGR2RGB) for img in img_batch]
     
@@ -125,18 +129,18 @@ async def video(request: Request):
             "model_selection_options": model_selection_options,
         })
 
+
 @app.get("/video_feed", include_in_schema=False)
 async def video_feed():
-    return StreamingResponse(gen_frames('yolov5s6_1'), media_type='multipart/x-mixed-replace; boundary=frame')
+    return StreamingResponse(gen_frames('yolov5s6_e21'), media_type='multipart/x-mixed-replace; boundary=frame')
 
 
-def gen_frames(model_name, camera_id=0):
+def gen_frames(model_name):
     if model_dict[model_name] is None:
         model_dict[model_name] = get_yolov5(model_name)
-    cap = cv2.VideoCapture(camera_id)
 
     while True:
-        success, frame = cap.read()
+        success, frame = camera.read()
         if not success:
             break
         else:
@@ -162,16 +166,17 @@ def results_to_json(results, model):
     return [
                 [
                     {
-                    "class": int(pred[5]),
-                    "class_name": model.model.names[int(pred[5])],
-                    "class_descr": class_descr.get(model.model.names[int(pred[5])], '-'),
-                    "bbox": [int(x) for x in pred[:4].tolist()],
-                    "confidence": float(pred[4]),
+                        "class": int(pred[5]),
+                        "class_name": model.model.names[int(pred[5])],
+                        "class_descr": class_descr.get(model.model.names[int(pred[5])], '-'),
+                        "bbox": [int(x) for x in pred[:4].tolist()],
+                        "confidence": float(pred[4]),
                     }
                 for pred in result
                 ]
             for result in results.xyxy
     ]
+
 
 def plot_one_box(x, im, color=(128, 128, 128), label=None, line_thickness=3):
     tl = line_thickness or round(0.002 * (im.shape[0] + im.shape[1]) / 2) + 1  # line/font thickness
@@ -190,19 +195,20 @@ def base64EncodeImage(img):
     im_b64 = base64.b64encode(im_arr.tobytes()).decode('utf-8')
     return im_b64
 
+
 if __name__ == '__main__':
     import uvicorn
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default='localhost')
     parser.add_argument('--port', default=8000)
-    parser.add_argument('--precache-models', action='store_true', 
-            help='Pre-cache all models in memory upon initialization, otherwise dynamically caches models')
+    parser.add_argument('--precache-models', action='store_true',
+                        help='Pre-cache all models in memory upon initialization, otherwise dynamically caches models')
     opt = parser.parse_args()
 
     if opt.precache_models:
         model_dict = {model_name: get_yolov5(model_name)
-                        for model_name in model_selection_options}
+                      for model_name in model_selection_options}
 
     app_str = 'main:app'
     uvicorn.run(app_str, host=opt.host, port=opt.port, reload=False)

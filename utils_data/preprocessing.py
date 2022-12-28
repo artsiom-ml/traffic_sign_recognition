@@ -84,7 +84,7 @@ class RtsdDataset:
         val_labels_df.reset_index(inplace=True)
 
         self.classes = classes
-        self.n_classes = len(classes)
+        self.n_classes = n_classes = len(classes)
 
         train_img_labels = self.make_annotations(train_labels_df)
         val_img_labels = self.make_annotations(val_labels_df)
