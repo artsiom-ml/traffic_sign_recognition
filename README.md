@@ -35,7 +35,7 @@ Train YOLOv5s on RTSD dataset:
 
 ```bash
 cd yolov5
-python train.py --img 1280 --batch 8 --epochs 100 --data ./../datasets/rtsd/data/traffic_signs.yaml --weights yolov5s6.pt --freeze 10
+python train.py --img 1280 --batch 8 --epochs 100 --data ./../datasets/rtsd/data/traffic_signs.yaml --weights yolov5s6.pt --freeze 12
 
 ```
 
